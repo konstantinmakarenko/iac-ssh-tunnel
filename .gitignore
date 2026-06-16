@@ -1,0 +1,10 @@
+.env
+terraform.tfvars
+*.exe
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+.venv/
+cloudru/terraform/
+cloudru/terraform.rc
