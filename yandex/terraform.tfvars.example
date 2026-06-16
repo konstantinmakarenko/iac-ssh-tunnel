@@ -1,0 +1,7 @@
+cloud_id   = "b1gxxxxxxxxxxxxxxxxx"   # Ваш cloud_id
+folder_id  = "b1gxxxxxxxxxxxxxxxxx"   # Ваш folder_id
+token      = "t1e3s5t7t0k3e5n7"       # Ваш OAuth-токен
+
+public_ssh_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ..."
+
+default_zone = "ru-central1-a"
