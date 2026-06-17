@@ -1,0 +1,5 @@
+auth_key_id   = "ваш_реальный_auth_key_id"
+auth_secret   = "ваш_реальный_auth_secret"
+project_id    = "ваш_реальный_project_id"
+public_ssh_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ..."
+zone          = "ru-moscow-1" # Уточните в Evolution
