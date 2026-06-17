@@ -19,35 +19,48 @@ echo "Yandex VM private IP: $YANDEX_PRIVATE"
 echo "Selectel VM public IP: $SELECTEL_IP"
 echo "Selectel VM private IP: $SELECTEL_PRIVATE"
 
-# Проверяем доступность
+# Проверяем SSH-доступ
 echo ""
-echo "=== Проверка доступности ==="
-ping -c 2 $YANDEX_IP || echo "Yandex VM не отвечает на ping (может быть блокировка ICMP)"
-ping -c 2 $SELECTEL_IP || echo "Selectel VM не отвечает на ping (может быть блокировка ICMP)"
-
-# Добавляем публичный ключ Yandex ВМ на Selectel ВМ
-echo ""
-echo "=== Добавление SSH-ключа Yandex на Selectel ==="
-ssh ubuntu@$SELECTEL_IP "echo '$(cat ~/.ssh/id_rsa.pub)' >> ~/.ssh/authorized_keys" || {
-  echo "Не удалось добавить ключ. Попробуйте вручную:"
-  echo "  cat ~/.ssh/id_rsa.pub | ssh ubuntu@$SELECTEL_IP 'cat >> ~/.ssh/authorized_keys'"
+echo "=== Проверка SSH-доступа ==="
+ssh -o ConnectTimeout=5 ubuntu@$YANDEX_IP "echo '✅ Yandex VM доступна'" || {
+  echo "❌ Не удалось подключиться к Yandex VM"
   exit 1
 }
 
-# Проверяем SSH-туннель
+ssh -o ConnectTimeout=5 ubuntu@$SELECTEL_IP "echo '✅ Selectel VM доступна'" || {
+  echo "❌ Не удалось подключиться к Selectel VM"
+  exit 1
+}
+
+# Получаем публичный ключ с Yandex ВМ (используем ed25519)
+echo ""
+echo "=== Получение публичного ключа с Yandex VM ==="
+ssh ubuntu@$YANDEX_IP "cat ~/.ssh/authorized_keys" > /tmp/yandex_key.pub || {
+  echo "❌ Не удалось получить ключ с Yandex VM"
+  exit 1
+}
+
+# Добавляем ключ на Selectel ВМ
+echo "=== Добавление SSH-ключа на Selectel VM ==="
+cat /tmp/yandex_key.pub | ssh ubuntu@$SELECTEL_IP "cat >> ~/.ssh/authorized_keys" || {
+  echo "❌ Не удалось добавить ключ на Selectel VM"
+  exit 1
+}
+
+echo "✅ SSH-ключ добавлен на Selectel VM"
+
+# Проверяем туннель
 echo ""
 echo "=== Проверка SSH-туннеля ==="
-echo "Подключение с Yandex (через публичный IP) к Selectel (через приватный IP):"
-ssh -J ubuntu@$YANDEX_IP ubuntu@$SELECTEL_PRIVATE "hostname && echo 'Туннель работает!'" || {
-  echo "Не удалось подключиться через туннель. Проверьте:"
-  echo "1. SSH-ключи на обеих ВМ"
-  echo "2. Security Groups (Yandex) и правила фаервола (Selectel)"
-  echo "3. Попробуйте вручную: ssh -J ubuntu@$YANDEX_IP ubuntu@$SELECTEL_PRIVATE"
+ssh -J ubuntu@$YANDEX_IP ubuntu@$SELECTEL_PRIVATE "hostname && echo '✅ Туннель работает!'" || {
+  echo "❌ Не удалось подключиться через туннель"
+  echo "Попробуйте вручную:"
+  echo "  ssh -J ubuntu@$YANDEX_IP ubuntu@$SELECTEL_PRIVATE"
   exit 1
 }
 
 echo ""
-echo "=== SSH-туннель успешно настроен! ==="
+echo "=== 🎉 SSH-туннель успешно настроен! ==="
 echo ""
 echo "Для подключения к Selectel через Yandex используйте:"
 echo "  ssh -J ubuntu@$YANDEX_IP ubuntu@$SELECTEL_PRIVATE"
