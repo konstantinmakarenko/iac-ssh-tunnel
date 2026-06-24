@@ -1,9 +1,9 @@
 #!/bin/bash
-# Установка SSH-туннеля между Yandex Cloud и Selectel
+# Установка SSH-туннеля между Yandex Cloud, Selectel и Cloud.ru
 
 set -e
 
-echo "=== Настройка SSH-туннеля между Yandex Cloud и Selectel ==="
+echo "=== Настройка SSH-туннеля между Yandex Cloud, Selectel и Cloud.ru ==="
 
 # Получаем IP-адреса из outputs
 cd ../yandex
@@ -14,10 +14,16 @@ cd ../selectel
 SELECTEL_IP=$(terraform output -raw vm_public_ip)
 SELECTEL_PRIVATE=$(terraform output -raw vm_private_ip)
 
+cd ../cloudru
+CLOUDRU_IP=$(terraform output -raw vm_public_ip)
+CLOUDRU_PRIVATE=$(terraform output -raw vm_private_ip)
+
 echo "Yandex VM public IP: $YANDEX_IP"
 echo "Yandex VM private IP: $YANDEX_PRIVATE"
 echo "Selectel VM public IP: $SELECTEL_IP"
 echo "Selectel VM private IP: $SELECTEL_PRIVATE"
+echo "Cloud.ru VM public IP: $CLOUDRU_IP"
+echo "Cloud.ru VM private IP: $CLOUDRU_PRIVATE"
 
 # Проверяем SSH-доступ
 echo ""
@@ -32,7 +38,12 @@ ssh -o ConnectTimeout=5 root@$SELECTEL_IP "echo '✅ Selectel VM доступн�
   exit 1
 }
 
-# Получаем публичный ключ с Yandex ВМ (используем ed25519)
+ssh -o ConnectTimeout=5 ubuntu@$CLOUDRU_IP "echo '✅ Cloud.ru VM доступна'" || {
+  echo "❌ Не удалось подключиться к Cloud.ru VM"
+  exit 1
+}
+
+# Получаем публичный ключ с Yandex ВМ
 echo ""
 echo "=== Получение публичного ключа с Yandex VM ==="
 ssh ubuntu@$YANDEX_IP "cat ~/.ssh/authorized_keys" > /tmp/yandex_key.pub || {
@@ -46,24 +57,43 @@ cat /tmp/yandex_key.pub | ssh root@$SELECTEL_IP "cat >> ~/.ssh/authorized_keys" 
   echo "❌ Не удалось добавить ключ на Selectel VM"
   exit 1
 }
-
 echo "✅ SSH-ключ добавлен на Selectel VM"
 
-# Проверяем туннель
+# Добавляем ключ на Cloud.ru ВМ
+echo "=== Добавление SSH-ключа на Cloud.ru VM ==="
+cat /tmp/yandex_key.pub | ssh ubuntu@$CLOUDRU_IP "cat >> ~/.ssh/authorized_keys" || {
+  echo "❌ Не удалось добавить ключ на Cloud.ru VM"
+  exit 1
+}
+echo "✅ SSH-ключ добавлен на Cloud.ru VM"
+
+# Проверяем туннель: Yandex → Selectel
 echo ""
-echo "=== Проверка SSH-туннеля ==="
-ssh -J ubuntu@$YANDEX_IP root@$SELECTEL_IP "hostname && echo '✅ Туннель работает!'" || {
-  echo "❌ Не удалось подключиться через туннель"
-  echo "Попробуйте вручную:"
-  echo "  ssh -J ubuntu@$YANDEX_IP root@$SELECTEL_IP"
+echo "=== Проверка SSH-туннеля: Yandex → Selectel ==="
+ssh -J ubuntu@$YANDEX_IP root@$SELECTEL_IP "hostname && echo '✅ Туннель Yandex→Selectel работает!'" || {
+  echo "❌ Не удалось подключиться через туннель Yandex→Selectel"
+  exit 1
+}
+
+# Проверяем туннель: Yandex → Cloud.ru
+echo ""
+echo "=== Проверка SSH-туннеля: Yandex → Cloud.ru ==="
+ssh -J ubuntu@$YANDEX_IP ubuntu@$CLOUDRU_IP "hostname && echo '✅ Туннель Yandex→Cloud.ru работает!'" || {
+  echo "❌ Не удалось подключиться через туннель Yandex→Cloud.ru"
   exit 1
 }
 
 echo ""
-echo "=== 🎉 SSH-туннель успешно настроен! ==="
+echo "=== 🎉 SSH-туннели успешно настроены! ==="
 echo ""
 echo "Для подключения к Selectel через Yandex используйте:"
 echo "  ssh -J ubuntu@$YANDEX_IP root@$SELECTEL_IP"
 echo ""
-echo "Для проброса порта (например, 8080) используйте:"
+echo "Для подключения к Cloud.ru через Yandex используйте:"
+echo "  ssh -J ubuntu@$YANDEX_IP ubuntu@$CLOUDRU_IP"
+echo ""
+echo "Для проброса порта (например, 8080) на Selectel:"
 echo "  ssh -L 8080:$SELECTEL_IP:8080 ubuntu@$YANDEX_IP"
+echo ""
+echo "Для проброса порта (например, 8080) на Cloud.ru:"
+echo "  ssh -L 8080:$CLOUDRU_IP:8080 ubuntu@$YANDEX_IP"

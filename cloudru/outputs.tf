@@ -1,6 +1,6 @@
 output "vm_public_ip" {
   description = "Публичный IP-адрес ВМ"
-  value       = cloudru_evolution_compute_interface.vm_interface.external_ip
+  value       = cloudru_evolution_compute_interface.vm_interface.external_ip.ip_address
 }
 
 output "vm_private_ip" {
@@ -12,3 +12,4 @@ output "vm_id" {
   description = "ID ВМ"
   value       = cloudru_evolution_compute_vm.vm.id
 }
+
