@@ -27,7 +27,7 @@ ssh -o ConnectTimeout=5 ubuntu@$YANDEX_IP "echo '✅ Yandex VM доступна'
   exit 1
 }
 
-ssh -o ConnectTimeout=5 ubuntu@$SELECTEL_IP "echo '✅ Selectel VM доступна'" || {
+ssh -o ConnectTimeout=5 root@$SELECTEL_IP "echo '✅ Selectel VM доступна'" || {
   echo "❌ Не удалось подключиться к Selectel VM"
   exit 1
 }
@@ -42,7 +42,7 @@ ssh ubuntu@$YANDEX_IP "cat ~/.ssh/authorized_keys" > /tmp/yandex_key.pub || {
 
 # Добавляем ключ на Selectel ВМ
 echo "=== Добавление SSH-ключа на Selectel VM ==="
-cat /tmp/yandex_key.pub | ssh ubuntu@$SELECTEL_IP "cat >> ~/.ssh/authorized_keys" || {
+cat /tmp/yandex_key.pub | ssh root@$SELECTEL_IP "cat >> ~/.ssh/authorized_keys" || {
   echo "❌ Не удалось добавить ключ на Selectel VM"
   exit 1
 }
@@ -52,10 +52,10 @@ echo "✅ SSH-ключ добавлен на Selectel VM"
 # Проверяем туннель
 echo ""
 echo "=== Проверка SSH-туннеля ==="
-ssh -J ubuntu@$YANDEX_IP ubuntu@$SELECTEL_PRIVATE "hostname && echo '✅ Туннель работает!'" || {
+ssh -J ubuntu@$YANDEX_IP root@$SELECTEL_IP "hostname && echo '✅ Туннель работает!'" || {
   echo "❌ Не удалось подключиться через туннель"
   echo "Попробуйте вручную:"
-  echo "  ssh -J ubuntu@$YANDEX_IP ubuntu@$SELECTEL_PRIVATE"
+  echo "  ssh -J ubuntu@$YANDEX_IP root@$SELECTEL_IP"
   exit 1
 }
 
@@ -63,7 +63,7 @@ echo ""
 echo "=== 🎉 SSH-туннель успешно настроен! ==="
 echo ""
 echo "Для подключения к Selectel через Yandex используйте:"
-echo "  ssh -J ubuntu@$YANDEX_IP ubuntu@$SELECTEL_PRIVATE"
+echo "  ssh -J ubuntu@$YANDEX_IP root@$SELECTEL_IP"
 echo ""
 echo "Для проброса порта (например, 8080) используйте:"
-echo "  ssh -L 8080:$SELECTEL_PRIVATE:8080 ubuntu@$YANDEX_IP"
+echo "  ssh -L 8080:$SELECTEL_IP:8080 ubuntu@$YANDEX_IP"
