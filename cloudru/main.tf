@@ -1,74 +1,126 @@
-# ===== ДАННЫЕ ОБ ОБРАЗЕ =====
-data "cloudru_compute_image" "ubuntu" {
-  family = "ubuntu-2404-lts"
-  latest = true
+# ===== VPC =====
+resource "cloudru_evolution_vpc_vpc" "main" {
+  project_id  = var.project_id
+  name        = "tf-evo-vpc"
+  description = "VPC для Terraform"
 }
 
-# ===== SSH-КЛЮЧ =====
-# В Cloud.ru Evolution ключ передаётся напрямую в ресурс ВМ
-# Отдельный ресурс для ключа не требуется
-
-# ===== СЕТЬ =====
-resource "cloudru_vpc_vpc" "main" {
-  name = "cloudru-network"
+# ===== ПОДСЕТЬ =====
+resource "cloudru_evolution_compute_subnet" "subnet" {
+  project_id = var.project_id
+  name       = "tf-evo-subnet"
+  zone_identifier = {
+    name = var.zone
+  }
+  description    = "Подсеть для ВМ"
+  subnet_address = "192.168.1.0/24"
+  routed_network = true
+  default        = false
+  vpc_id         = cloudru_evolution_vpc_vpc.main.id
+  dns_servers = {
+    value = ["8.8.4.4", "8.8.8.8"]
+  }
 }
 
-resource "cloudru_compute_subnet" "subnet" {
-  name   = "cloudru-subnet"
-  cidr   = "192.168.1.0/24"
-  zone   = var.zone
-  vpc_id = cloudru_vpc_vpc.main.id
+# ===== ГРУППА БЕЗОПАСНОСТИ =====
+resource "cloudru_evolution_compute_security_group" "allow_ssh" {
+  project_id = var.project_id
+  name       = "tf-evo-sg"
+  zone_identifier = {
+    name = var.zone
+  }
+  description = "Группа безопасности для ВМ"
+}
+
+# ===== ПРАВИЛА ГРУППЫ БЕЗОПАСНОСТИ =====
+resource "cloudru_evolution_compute_security_group_rule" "ingress_ssh" {
+  security_group_id = cloudru_evolution_compute_security_group.allow_ssh.id
+  direction         = "TRAFFIC_DIRECTION_INGRESS"
+  ether_type        = "ETHER_TYPE_IPV4"
+  ip_protocol       = "IP_PROTOCOL_TCP"
+  port_range        = "22:22"
+  description       = "SSH доступ"
+  remote_ip_prefix  = "0.0.0.0/0"
+}
+
+resource "cloudru_evolution_compute_security_group_rule" "egress_all" {
+  security_group_id = cloudru_evolution_compute_security_group.allow_ssh.id
+  direction         = "TRAFFIC_DIRECTION_EGRESS"
+  ether_type        = "ETHER_TYPE_IPV4"
+  ip_protocol       = "IP_PROTOCOL_TCP"
+  port_range        = "1:65535"
+  description       = "Разрешить весь исходящий TCP"
+  remote_ip_prefix  = "0.0.0.0/0"
+}
+
+# ===== СЕТЕВОЙ ИНТЕРФЕЙС =====
+resource "cloudru_evolution_compute_interface" "vm_interface" {
+  project_id = var.project_id
+  name       = "tf-evo-interface"
+  zone_identifier = {
+    name = var.zone
+  }
+  description                = "Сетевой интерфейс для ВМ"
+  subnet_id                  = cloudru_evolution_compute_subnet.subnet.id
+  interface_security_enabled = true
+  security_groups_identifiers = {
+    value = [{
+      id = cloudru_evolution_compute_security_group.allow_ssh.id
+    }]
+  }
+  type = "INTERFACE_TYPE_REGULAR"
+
+  # Создаём External IP автоматически
+  external_ip_specs = {
+    new_external_ip = true
+  }
+}
+
+# ===== ДИСК =====
+resource "cloudru_evolution_compute_disk" "vm_disk" {
+  project_id = var.project_id
+  name       = "tf-evo-disk"
+  size       = 15
+  zone_identifier = {
+    name = var.zone
+  }
+  disk_type_identifier = {
+    name = "SSD"
+  }
+  description = "Загрузочный диск для ВМ"
+  bootable    = true
+  image_id    = var.image_id
+  encrypted   = false
+  readonly    = false
+  shared      = false
 }
 
 # ===== ВИРТУАЛЬНАЯ МАШИНА =====
-resource "cloudru_compute_vm" "vm" {
-  name        = "cloudru-vm"
-  zone        = var.zone
-  image_id    = data.cloudru_compute_image.ubuntu.id
-  flavor_name = "s7n.medium-2"  # 2 vCPU, 4 GB RAM (минимальный доступный)
-  ssh_keys    = [var.public_ssh_key]
-
-  # User-data для настройки ВМ
-  user_data = base64encode(<<-EOF
+resource "cloudru_evolution_compute_vm" "vm" {
+  project_id = var.project_id
+  name       = var.vm_name
+  zone_identifier = {
+    name = var.zone
+  }
+  flavor_identifier = {
+    name = var.flavor
+  }
+  description = "ВМ, созданная через Terraform"
+  disk_identifiers = [{
+    disk_id = cloudru_evolution_compute_disk.vm_disk.id
+  }]
+  network_interfaces = [{
+    interface_id = cloudru_evolution_compute_interface.vm_interface.id
+  }]
+  cloud_init_userdata = base64encode(<<-EOF
     #!/bin/bash
-    set -e
-    echo "=== Starting user_data script ===" >> /var/log/user-data.log
-
-    # Создаём папку для SSH-ключей (на всякий случай)
     mkdir -p /home/ubuntu/.ssh
-    chmod 700 /home/ubuntu/.ssh
-
-    # Добавляем публичный ключ
     echo "${var.public_ssh_key}" > /home/ubuntu/.ssh/authorized_keys
-
-    # Устанавливаем правильные права
+    chmod 700 /home/ubuntu/.ssh
     chmod 600 /home/ubuntu/.ssh/authorized_keys
     chown -R ubuntu:ubuntu /home/ubuntu/.ssh
-
-    # Включаем IP forwarding
     echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
     sysctl -p
-
-    echo "=== user_data script finished successfully ===" >> /var/log/user-data.log
   EOF
   )
-
-  network_interface {
-    subnet_id = cloudru_compute_subnet.subnet.id
-  }
-
-  boot_disk {
-    size = 15
-    type = "ssd"
-  }
-}
-
-# ===== ПУБЛИЧНЫЙ IP =====
-# Создаём Floating IP
-resource "cloudru_compute_floating_ip" "vm_floating_ip" {}
-
-# Привязываем Floating IP к ВМ
-resource "cloudru_compute_floating_ip_associate" "vm_floating_ip_assoc" {
-  floating_ip_id = cloudru_compute_floating_ip.vm_floating_ip.id
-  instance_id    = cloudru_compute_vm.vm.id
 }

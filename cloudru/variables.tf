@@ -26,3 +26,22 @@ variable "public_ssh_key" {
   type        = string
   sensitive   = true
 }
+
+variable "vm_name" {
+  description = "Имя виртуальной машины"
+  type        = string
+  default     = "cloudru-vm"
+}
+
+variable "flavor" {
+  description = "Flavor виртуальной машины"
+  type        = string
+  default     = "lowcost10-1-1"
+}
+
+variable "image_id" {
+  description = "ID образа Ubuntu 24.04"
+  type        = string
+  # Замените на реальный ID образа из Cloud.ru
+  default     = "img-xxxxxxxx"
+}
