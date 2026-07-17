@@ -1,30 +1,57 @@
-Создание 3 виртуальных машин при помощи Terraform: 1 на Yandex.Cloud, 1 на Selectel, 1 на Cloud.ru. Между машинами прокладывается ssh-тунель. 
+# iac-ssh-tunnel
 
-НАХОДИТСЯ В РАЗРАБОТКЕ!!! 
+Проект находится в разработке.
 
-При работе с Cloud.ru необходимо установить провайдер, выполнив следующие команды:
+`iac-ssh-tunnel` - это Terraform-проект для создания трёх виртуальных машин в разных российских облаках и проверки SSH-доступа между ними через jump host.
 
-Создайте папку для версии 2.0.0
-mkdir -p ~/.terraform.d/plugins/cloud.ru/cloudru/cloud/2.0.0/linux_amd64
+## Назначение
 
-Скачайте провайдер версии 2.0.0 (важно: точная версия!)
-curl -L -o ~/.terraform.d/plugins/cloud.ru/cloudru/cloud/2.0.0/linux_amd64/terraform-provider-cloud \
-  https://github.com/CLOUDdotRu/evo-terraform/releases/download/2.0.0/terraform-provider-cloud_2.0.0_linux_amd64
+Проект поднимает по одной виртуальной машине в:
 
-Сделайте файл исполняемым
-chmod +x ~/.terraform.d/plugins/cloud.ru/cloudru/cloud/2.0.0/linux_amd64/terraform-provider-cloud
+- Yandex Cloud;
+- Selectel;
+- Cloud.ru.
 
-Проверьте, что файл скачался
-ls -la ~/.terraform.d/plugins/cloud.ru/cloudru/cloud/2.0.0/linux_amd64/
+После создания инфраструктуры скрипт `scripts/setup-tunnel.sh` получает публичные и приватные IP из Terraform outputs, проверяет SSH-доступ к каждой машине, добавляет ключи и тестирует подключение через SSH jump host.
 
-cat > ~/.terraformrc << 'EOF'
-provider_installation {
-  dev_overrides {
-    "cloud.ru/cloudru/cloud" = "/home/user2/.terraform.d/plugins/cloud.ru/cloudru/cloud/2.0.0/linux_amd64"
-  }
-  direct {}
-}
-EOF
+## Структура
 
-Проверьте содержимое
-cat ~/.terraformrc
+- `yandex/` - Terraform-конфигурация для Yandex Cloud.
+- `selectel/` - Terraform-конфигурация для Selectel.
+- `cloudru/` - Terraform-конфигурация для Cloud.ru.
+- `scripts/setup-tunnel.sh` - настройка и проверка SSH-туннеля между созданными ВМ.
+- `terraform.tfvars.example` в каждой облачной папке - пример переменных для запуска.
+
+## Требования
+
+- Terraform.
+- Доступы к облачным аккаунтам Yandex Cloud, Selectel и Cloud.ru.
+- SSH-ключ для подключения к виртуальным машинам.
+- Установленный Terraform provider для каждого облака.
+
+Для Cloud.ru может потребоваться ручная установка provider. В текущей версии проекта это отдельная рабочая зона: проверяйте актуальные инструкции Cloud.ru перед запуском.
+
+## Быстрый порядок работы
+
+1. Перейдите в папку нужного провайдера.
+2. Скопируйте `terraform.tfvars.example` в `terraform.tfvars`.
+3. Заполните значения переменных.
+4. Выполните `terraform init`.
+5. Выполните `terraform plan` и внимательно проверьте создаваемые ресурсы.
+6. Выполните `terraform apply`.
+7. После успешного создания всех ВМ запустите `scripts/setup-tunnel.sh` из каталога `scripts`.
+
+## Безопасность и расходы
+
+Terraform создаёт реальные облачные ресурсы. Перед `apply` проверяйте стоимость, регионы, публичные IP, SSH-ключи и содержимое `terraform.tfstate`.
+
+Не коммитьте:
+
+- `terraform.tfvars` с реальными значениями;
+- приватные SSH-ключи;
+- токены и сервисные ключи облаков;
+- файлы состояния Terraform, если в них есть секреты.
+
+## Статус
+
+Проект экспериментальный и учебно-практический. Перед использованием в production требуется дополнительная проверка сетевой модели, правил доступа, хранения секретов и совместимости provider-ов.
