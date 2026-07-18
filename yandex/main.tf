@@ -1,9 +1,12 @@
-# ===== ДАННЫЕ ОБ ОБРАЗЕ =====
+# Terraform-конфигурация этого файла описывает часть облачной инфраструктуры.
+
+
+# Берём актуальный образ Ubuntu для виртуальных машин.
 data "yandex_compute_image" "ubuntu" {
   family = "ubuntu-2404-lts"
 }
 
-# ===== ВИРТУАЛЬНАЯ МАШИНА =====
+# Создаём виртуальную машину с SSH-доступом.
 resource "yandex_compute_instance" "vm" {
   name        = "yc-vm"
   platform_id = "standard-v2"
@@ -33,11 +36,12 @@ resource "yandex_compute_instance" "vm" {
   }
 }
 
-# ===== СЕТЬ =====
+# Создаём облачную сеть.
 resource "yandex_vpc_network" "main" {
   name = "yc-network"
 }
 
+# Описываем подсеть и её адресный диапазон.
 resource "yandex_vpc_subnet" "subnet" {
   name           = "yc-subnet"
   zone           = var.default_zone

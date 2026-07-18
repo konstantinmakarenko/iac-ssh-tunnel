@@ -1,11 +1,14 @@
-# ===== VPC =====
+# Terraform-конфигурация этого файла описывает часть облачной инфраструктуры.
+
+
+# Создаём облачную сеть.
 resource "cloudru_evolution_vpc_vpc" "main" {
   project_id  = var.project_id
   name        = "tf-evo-vpc"
   description = "VPC для Terraform"
 }
 
-# ===== ПОДСЕТЬ =====
+# Описываем подсеть и её адресный диапазон.
 resource "cloudru_evolution_compute_subnet" "subnet" {
   project_id = var.project_id
   name       = "tf-evo-subnet"
@@ -22,7 +25,7 @@ resource "cloudru_evolution_compute_subnet" "subnet" {
   }
 }
 
-# ===== ГРУППА БЕЗОПАСНОСТИ =====
+# Группа безопасности ограничивает сетевой доступ к ВМ.
 resource "cloudru_evolution_compute_security_group" "allow_ssh" {
   project_id = var.project_id
   name       = "tf-evo-sg"
@@ -32,7 +35,7 @@ resource "cloudru_evolution_compute_security_group" "allow_ssh" {
   description = "Группа безопасности для ВМ"
 }
 
-# ===== ПРАВИЛА ГРУППЫ БЕЗОПАСНОСТИ =====
+# Правило открывает только нужный тип трафика.
 resource "cloudru_evolution_compute_security_group_rule" "ingress_ssh" {
   security_group_id = cloudru_evolution_compute_security_group.allow_ssh.id
   direction         = "TRAFFIC_DIRECTION_INGRESS"
@@ -43,6 +46,7 @@ resource "cloudru_evolution_compute_security_group_rule" "ingress_ssh" {
   remote_ip_prefix  = "0.0.0.0/0"
 }
 
+# Правило открывает только нужный тип трафика.
 resource "cloudru_evolution_compute_security_group_rule" "egress_all" {
   security_group_id = cloudru_evolution_compute_security_group.allow_ssh.id
   direction         = "TRAFFIC_DIRECTION_EGRESS"
@@ -53,7 +57,7 @@ resource "cloudru_evolution_compute_security_group_rule" "egress_all" {
   remote_ip_prefix  = "0.0.0.0/0"
 }
 
-# ===== СЕТЕВОЙ ИНТЕРФЕЙС =====
+# Создаём сетевой интерфейс для подключения ВМ к подсети.
 resource "cloudru_evolution_compute_interface" "vm_interface" {
   project_id = var.project_id
   name       = "tf-evo-interface"
@@ -70,13 +74,12 @@ resource "cloudru_evolution_compute_interface" "vm_interface" {
   }
   type = "INTERFACE_TYPE_REGULAR"
 
-  # Создаём External IP автоматически
   external_ip_specs = {
     new_external_ip = true
   }
 }
 
-# ===== ДИСК =====
+# Создаём загрузочный диск виртуальной машины.
 resource "cloudru_evolution_compute_disk" "vm_disk" {
   project_id = var.project_id
   name       = "tf-evo-disk"
@@ -95,7 +98,7 @@ resource "cloudru_evolution_compute_disk" "vm_disk" {
   shared      = false
 }
 
-# ===== ВИРТУАЛЬНАЯ МАШИНА =====
+# Создаём виртуальную машину с SSH-доступом.
 resource "cloudru_evolution_compute_vm" "vm" {
   project_id = var.project_id
   name       = var.vm_name
@@ -112,6 +115,7 @@ resource "cloudru_evolution_compute_vm" "vm" {
   network_interfaces = [{
     interface_id = cloudru_evolution_compute_interface.vm_interface.id
   }]
+  # Cloud-init настраивает SSH и сетевые параметры внутри ВМ.
   cloud_init_userdata = base64encode(<<-EOF
     #!/bin/bash
     mkdir -p /home/ubuntu/.ssh

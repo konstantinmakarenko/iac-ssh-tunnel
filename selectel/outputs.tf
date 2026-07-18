@@ -1,3 +1,6 @@
+# Terraform-конфигурация этого файла описывает часть облачной инфраструктуры.
+
+
 output "vm_public_ip" {
   description = "Публичный IP-адрес ВМ"
   value       = selectel_vpc_floatingip_v2.vm_floatingip.floating_ip_address

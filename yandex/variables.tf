@@ -1,3 +1,6 @@
+# Terraform-конфигурация этого файла описывает часть облачной инфраструктуры.
+
+
 variable "cloud_id" {
   description = "ID облака Yandex Cloud"
   type        = string

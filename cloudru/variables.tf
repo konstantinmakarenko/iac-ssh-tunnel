@@ -1,3 +1,6 @@
+# Terraform-конфигурация этого файла описывает часть облачной инфраструктуры.
+
+
 variable "auth_key_id" {
   description = "ID ключа сервисного аккаунта Cloud.ru"
   type        = string
@@ -42,6 +45,5 @@ variable "flavor" {
 variable "image_id" {
   description = "ID образа Ubuntu 24.04"
   type        = string
-  # Замените на реальный ID образа из Cloud.ru
   default     = "img-xxxxxxxx"
 }

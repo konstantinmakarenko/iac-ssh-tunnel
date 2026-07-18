@@ -1,3 +1,6 @@
+# Terraform-конфигурация этого файла описывает часть облачной инфраструктуры.
+
+
 variable "account_id" {
   description = "Номер аккаунта Selectel"
   type        = string
